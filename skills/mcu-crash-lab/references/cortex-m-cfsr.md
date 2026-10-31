@@ -27,3 +27,5 @@ CFSR (0xE000ED28) = MMFSR (bits 7:0) | BFSR (bits 15:8) | UFSR (bits 31:16)
 ## Notes
 - HFSR bit 30 FORCED means a configurable fault escalated to HardFault; read CFSR for the real cause.
 - IMPRECISERR: the stacked PC can be off; disable the write buffer (ACTLR.DISDEFWBUF) while debugging to make it precise.
+- A bus fault raised inside an ISR of the same or higher priority cannot preempt it, so it escalates to HardFault with FORCED set. Read CFSR for the real cause; stacked xPSR low 9 bits give the ISR number.
+- Stacked PC is at SP+0x18 in both the basic (0x20 byte) and the FPU extended (0x68 byte) frame. EXC_RETURN bit 4 clear means the extended frame.
