@@ -1,4 +1,5 @@
 {
+  "source": "qemu_measured",
   "machine": "mps2-an386",
   "frame": "basic",
   "fault_type": "BusFault",

@@ -8,6 +8,7 @@
     {
       "name": "div0_usagefault",
       "machine": "mps2-an386",
+      "source": "qemu_measured",
       "passed": true,
       "status": "verified",
       "reason": null,
@@ -39,7 +40,8 @@
         },
         "bfar": null,
         "mmfar": null,
-        "hint": "Check the divisor before integer division; CCR.DIV_0_TRP is set."
+        "hint": "Check the divisor before integer division; CCR.DIV_0_TRP is set.",
+        "caveats": []
       },
       "registers": {
         "R0": "0x00000000",
@@ -61,6 +63,7 @@
     {
       "name": "fault_in_isr",
       "machine": "mps2-an386",
+      "source": "hand_built",
       "passed": false,
       "status": "not_reproduced",
       "reason": "NULL writes succeed in writable SSRAM on mps2-an386; no fault frame is produced.",
@@ -82,6 +85,7 @@
     {
       "name": "fault_in_isr_unmapped",
       "machine": "mps2-an386",
+      "source": "qemu_measured",
       "passed": true,
       "status": "verified",
       "reason": null,
@@ -116,7 +120,10 @@
         },
         "bfar": 1610612736,
         "mmfar": null,
-        "hint": "Check the load/store pointer and the board memory map. A configurable fault escalated to HardFault; inspect CFSR and SHCSR. LR is EXC_RETURN; supply the stacked LR for the caller location."
+        "hint": "Check the load/store pointer and the board memory map. LR is EXC_RETURN; supply the stacked LR for the caller location.",
+        "caveats": [
+          "A configurable fault escalated to HardFault; the cause is in CFSR. Inspect CFSR and SHCSR."
+        ]
       },
       "registers": {
         "R0": "0x00000000",
@@ -138,6 +145,7 @@
     {
       "name": "fpu_frame_fault",
       "machine": "mps2-an386",
+      "source": "qemu_measured",
       "passed": true,
       "status": "verified",
       "reason": null,
@@ -170,7 +178,8 @@
         },
         "bfar": 1610612736,
         "mmfar": null,
-        "hint": "Check the load/store pointer and the board memory map."
+        "hint": "Check the load/store pointer and the board memory map.",
+        "caveats": []
       },
       "registers": {
         "R0": "0x00000000",
@@ -192,6 +201,7 @@
     {
       "name": "mpu_violation",
       "machine": "mps2-an386",
+      "source": "qemu_measured",
       "passed": true,
       "status": "verified",
       "reason": null,
@@ -224,7 +234,8 @@
         },
         "bfar": null,
         "mmfar": 536870912,
-        "hint": "Check the pointer and MPU data permissions."
+        "hint": "Check the pointer and MPU data permissions.",
+        "caveats": []
       },
       "registers": {
         "R0": "0x20000000",
@@ -246,6 +257,7 @@
     {
       "name": "mpu_violation_forced",
       "machine": "mps2-an386",
+      "source": "qemu_measured",
       "passed": true,
       "status": "verified",
       "reason": null,
@@ -280,7 +292,10 @@
         },
         "bfar": null,
         "mmfar": 536870912,
-        "hint": "Check the pointer and MPU data permissions. A configurable fault escalated to HardFault; inspect CFSR and SHCSR."
+        "hint": "Check the pointer and MPU data permissions.",
+        "caveats": [
+          "A configurable fault escalated to HardFault; the cause is in CFSR. Inspect CFSR and SHCSR."
+        ]
       },
       "registers": {
         "R0": "0x20000000",
@@ -302,6 +317,7 @@
     {
       "name": "undefined_instruction_usagefault",
       "machine": "mps2-an386",
+      "source": "qemu_measured",
       "passed": true,
       "status": "verified",
       "reason": null,
@@ -333,7 +349,8 @@
         },
         "bfar": null,
         "mmfar": null,
-        "hint": "Check the instruction at PC and the build CPU flags."
+        "hint": "Check the instruction at PC and the build CPU flags.",
+        "caveats": []
       },
       "registers": {
         "R0": "0x00000000",
@@ -355,6 +372,7 @@
     {
       "name": "unmapped_write_busfault",
       "machine": "mps2-an386",
+      "source": "qemu_measured",
       "passed": true,
       "status": "verified",
       "reason": null,
@@ -387,7 +405,8 @@
         },
         "bfar": 1610612736,
         "mmfar": null,
-        "hint": "Check the load/store pointer and the board memory map."
+        "hint": "Check the load/store pointer and the board memory map.",
+        "caveats": []
       },
       "registers": {
         "R0": "0x00000000",

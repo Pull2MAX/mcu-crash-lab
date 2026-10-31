@@ -81,8 +81,10 @@ def run_fixture(folder, qemu_version):
             fixed = "DONE"
     documented = expected.get("status", "verified")
     status = (documented if documented in ("not_reproduced", "static_only") else
-              "failed" if mismatches else "verified" if qemu_version else "static_only")
-    return {"name": folder.name, "machine": machine, "passed": status == "verified",
+              "failed" if mismatches else
+              "verified" if qemu_version and expected["source"] == "qemu_measured" else "static_only")
+    return {"name": folder.name, "machine": machine, "source": expected["source"],
+            "passed": status == "verified",
             "status": status, "reason": expected.get("reason"), "mismatches": mismatches,
             "qemu_version": qemu_version, "fixed": fixed,
             "elf": str(elf), "dump": str(dump), "analysis": analysis,

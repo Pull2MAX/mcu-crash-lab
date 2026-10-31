@@ -14,18 +14,15 @@ BFSR = {8: "IBUSERR", 9: "PRECISERR", 10: "IMPRECISERR", 11: "UNSTKERR",
 UFSR = {16: "UNDEFINSTR", 17: "INVSTATE", 18: "INVPC", 19: "NOCP",
         20: "STKOF", 24: "UNALIGNED", 25: "DIVBYZERO"}
 HFSR = {1: "VECTTBL", 30: "FORCED", 31: "DEBUGEVT"}
-KEYS = "r0 r1 r2 r3 r12 lr pc xpsr exc_return cfsr hfsr mmfar bfar sp".split()
+KEYS = "r0 r1 r2 r3 r12 lr pc xpsr exc_return cfsr hfsr mmfar bfar sp fpccr".split()
 HINTS = {
     "IACCVIOL": "Check MPU execute permissions and the jump target.",
     "DACCVIOL": "Check the pointer and MPU data permissions.",
     "MUNSTKERR": "Check SP and stack corruption on exception return.",
-    "MSTKERR": "Check stack space and MPU stack guards on exception entry.",
     "MLSPERR": "Check stack access during lazy FP state preservation.",
     "IBUSERR": "Check the instruction address and function pointers.",
     "PRECISERR": "Check the load/store pointer and the board memory map.",
-    "IMPRECISERR": "The failed store may precede PC; inspect earlier stores. On Cortex-M3/M4, try ACTLR.DISDEFWBUF.",
     "UNSTKERR": "Check SP and stack memory on exception return.",
-    "STKERR": "Check for stack overflow or SP outside RAM on exception entry.",
     "LSPERR": "Check stack memory during lazy FP state preservation.",
     "UNDEFINSTR": "Check the instruction at PC and the build CPU flags.",
     "INVSTATE": "Check the Thumb bit in function pointers and stacked xPSR.",
@@ -35,8 +32,13 @@ HINTS = {
     "UNALIGNED": "Align the accessed data or use memcpy for packed data.",
     "DIVBYZERO": "Check the divisor before integer division; CCR.DIV_0_TRP is set.",
     "VECTTBL": "Check VTOR and the vector table memory.",
-    "FORCED": "A configurable fault escalated to HardFault; inspect CFSR and SHCSR.",
     "DEBUGEVT": "Check for a breakpoint or debug event without a debugger.",
+}
+CAVEATS = {
+    "MSTKERR": "Stacked values may be incomplete; check stack space and MPU stack guards on exception entry.",
+    "STKERR": "Stacked values may be incomplete; check for stack overflow or SP outside RAM on exception entry.",
+    "IMPRECISERR": "PC may not be the faulting instruction; inspect earlier stores. On Cortex-M3/M4, try ACTLR.DISDEFWBUF.",
+    "FORCED": "A configurable fault escalated to HardFault; the cause is in CFSR. Inspect CFSR and SHCSR.",
 }
 
 
@@ -91,8 +93,6 @@ def classify(registers, cfsr_bits, hfsr_bits):
     for valid, register in (("BFARVALID", "bfar"), ("MMARVALID", "mmfar")):
         if valid in cfsr_bits and registers.get(register, 0x1000) < 0x1000:
             hints.append(f"{register.upper()} is near zero; check for a NULL pointer plus a field offset.")
-    if "FORCED" in hfsr_bits and not cfsr_bits:
-        hints.append("FORCED is set but CFSR is zero; capture CFSR before clearing it.")
     if registers.get("lr", 0) >= 0xFFFFFF80:
         hints.append("LR is EXC_RETURN; supply the stacked LR for the caller location.")
     return fault_type, " ".join(hints) or "Check the stacked frame and fault registers."
@@ -103,6 +103,11 @@ def analyze(registers, elf):
     hfsr_bits = decode_hfsr(registers.get("hfsr", 0))
     fault_type, hint = classify(registers, cfsr_bits, hfsr_bits)
     basic = bool(registers["exc_return"] & (1 << 4))
+    caveats = [CAVEATS[bit] for bit in cfsr_bits + hfsr_bits if bit in CAVEATS]
+    if "FORCED" in hfsr_bits and not cfsr_bits:
+        caveats.append("CFSR is zero; capture CFSR before clearing it.")
+    if not basic and registers.get("fpccr", 0) & 1:
+        caveats.append("FPCCR.LSPACT is set; FP registers were not saved yet (lazy stacking).")
     frame_size = 0x20 if basic else 0x68
     padding = 4 if registers["xpsr"] & (1 << 9) else 0
     fault_class = ("mpu_violation" if "MMARVALID" in cfsr_bits and
@@ -121,6 +126,7 @@ def analyze(registers, elf):
         "bfar": registers.get("bfar") if "BFARVALID" in cfsr_bits else None,
         "mmfar": registers.get("mmfar") if "MMARVALID" in cfsr_bits else None,
         "hint": hint,
+        "caveats": caveats,
     }
 
 
@@ -147,6 +153,8 @@ def main():
         value = result[key]
         print(f"{key.upper()}: {'invalid' if value is None else f'0x{value:08x}'}")
     print(f"Hint: {result['hint']}")
+    for caveat in result["caveats"]:
+        print(f"Caveat: {caveat}")
 
 
 if __name__ == "__main__":

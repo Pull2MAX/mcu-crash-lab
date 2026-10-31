@@ -1,4 +1,5 @@
 *.elf
+!examples/offline/firmware.elf
 *.o
 *.map
 *.bin

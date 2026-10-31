@@ -1,6 +1,6 @@
 # mcu-crash-lab
 
-An agent skill for triaging Cortex-M crashes. Give it CFSR/HFSR, the fault address registers, stacked PC/LR and the matching ELF; it names the fault bits and the faulting source line. Each fixture here is a small firmware that crashes on purpose, so the analyzer can be checked against a real fault instead of a hand-written dump.
+An agent skill for triaging Cortex-M crashes. Give it CFSR/HFSR, the fault address registers, stacked PC/LR and the matching ELF; it names the fault bits and locates PC/LR in the source. The small firmware fixtures exercise instructions and memory accesses on QEMU's MPS2 AN386 model; their captured registers check the analyzer.
 
 ## Use
 
@@ -12,24 +12,30 @@ Run the analyzer on a dump:
 
 It needs `arm-none-eabi-addr2line` on PATH.
 
+For an offline demo with Python and addr2line only:
+
+    make demo
+
+`examples/offline/` contains a prebuilt ELF from `unmapped_write_busfault`, a full QEMU capture and a hand-built thin dump. The thin dump has only IMPRECISERR in CFSR, no BFAR and PC past the store; the analyzer warns that PC may not identify the faulting instruction. These examples add no verified scenarios. Optional `FPCCR` in a dump lets the analyzer warn when an extended frame has lazy FP state still pending.
+
 ## Fixtures
 
 7 verified scenarios (from the last `make test`, see `tests/results.json`).
 
-| Fixture | Fault | Status |
-|---|---|---|
-| unmapped_write_busfault | precise BusFault (PRECISERR, BFARVALID) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
-| div0_usagefault | UsageFault (DIVBYZERO, CCR.DIV_0_TRP set) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
-| undefined_instruction_usagefault | UsageFault (UNDEFINSTR) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
-| fpu_frame_fault | BusFault with FPU extended frame (EXC_RETURN 0xFFFFFFE9) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
-| mpu_violation | MemManage (DACCVIOL, MMARVALID), MPU read-only region | verified in qemu-system-arm 10.0.13 (mps2-an386) |
-| mpu_violation_forced | same, MEMFAULTENA off: HardFault with HFSR FORCED | verified in qemu-system-arm 10.0.13 (mps2-an386) |
-| fault_in_isr_unmapped | BusFault in SysTick_Handler, escalated to HardFault (FORCED) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
-| fault_in_isr | NULL write in SysTick_Handler | not reproduced (address 0 is RAM on mps2-an386, no fault) |
+| Fixture | Code on mps2-an386 | Measured fault | Status |
+|---|---|---|---|
+| unmapped_write_busfault | write to unmapped address 0x60000000 | precise BusFault (PRECISERR, BFARVALID) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| div0_usagefault | integer divide by zero with CCR.DIV_0_TRP set | UsageFault (DIVBYZERO) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| undefined_instruction_usagefault | execute UDF #0 | UsageFault (UNDEFINSTR) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| fpu_frame_fault | FP addition, then write to unmapped address 0x60000000 | BusFault with FPU extended frame (EXC_RETURN 0xFFFFFFE9) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| mpu_violation | write to buffer at 0x20000000 with MPU read-only permissions | MemManage (DACCVIOL, MMARVALID) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| mpu_violation_forced | same buffer write, MEMFAULTENA off | HardFault with HFSR FORCED | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| fault_in_isr_unmapped | write to unmapped address 0x60000000 in SysTick_Handler | BusFault escalated to HardFault (FORCED) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| fault_in_isr | write to address 0 in SysTick_Handler | none | not reproduced (address 0 is RAM on mps2-an386, no fault) |
 
-The BusFault fixture writes to 0x60000000, not to NULL. On the MPS2 AN386 model address 0 is RAM, so a NULL write does not fault there. On real parts where 0 is flash or unmapped, a NULL write gives the same PRECISERR/BFARVALID pattern, but that is not what this fixture tests.
+The BusFault fixture writes to unmapped address 0x60000000. On the MPS2 AN386 model address 0 is writable RAM, so the NULL write in `fault_in_isr` does not fault there.
 
-Each fixture has `expected.json` with the faulting function, line (marked `/* FAULT HERE */` in main.c) and CFSR bits. `dump.txt` is the dump captured from the QEMU run, used by the unit tests and as the input when QEMU is missing. Without QEMU the runner reports "static analysis only" and counts zero verified scenarios.
+Each fixture has `expected.json` with the expected function, line (marked `/* FAULT HERE */` in main.c), CFSR bits and a `source` label: `qemu_measured`, `hand_built` or `real_device`. Only matching QEMU runs with source `qemu_measured` count as verified. `fault_in_isr` keeps hand-built predictions and status `not_reproduced`. `dump.txt` is the dump captured from the QEMU run, used by the unit tests and as the input when QEMU is missing. Without QEMU the runner reports "static analysis only" and counts zero verified scenarios.
 
 Notes on measured values that differ from tasks/batch2.md:
 

@@ -5,8 +5,10 @@ from contextlib import redirect_stdout
 from io import StringIO
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
@@ -49,9 +51,42 @@ class DecoderTests(unittest.TestCase):
         self.assertEqual(ac.decode_hfsr(1), [])
 
     def test_parse(self):
-        registers = ac.parse_dump("PC=0x08001234\nlr: 0x8000001\nCFSR = 512\nEXC_RETURN=0xFFFFFFF9\nR4=7")
+        registers = ac.parse_dump("PC=0x08001234\nlr: 0x8000001\nCFSR = 512\nEXC_RETURN=0xFFFFFFF9\nFPCCR=0xC0000001\nR4=7")
         self.assertEqual(registers, {"pc": 0x08001234, "lr": 0x8000001,
-                                     "cfsr": 0x200, "exc_return": 0xFFFFFFF9})
+                                     "cfsr": 0x200, "exc_return": 0xFFFFFFF9,
+                                     "fpccr": 0xC0000001})
+
+    def test_caveats(self):
+        for cfsr, hfsr, message in (
+            (0x10, 0, "Stacked values may be incomplete"),
+            (0x1000, 0, "Stacked values may be incomplete"),
+            (0x400, 0, "PC may not be the faulting instruction"),
+            (0x2000000, 0x40000000, "the cause is in CFSR"),
+            (0, 0x40000000, "CFSR is zero"),
+        ):
+            with self.subTest(cfsr=hex(cfsr), hfsr=hex(hfsr)):
+                registers = dict(cfsr=cfsr, hfsr=hfsr, pc=0, lr=0, sp=0,
+                                 exc_return=0xFFFFFFF9, xpsr=0x01000000)
+                with patch.object(ac, "symbolize", return_value={}):
+                    result = ac.analyze(registers, "unused.elf")
+                self.assertIn(message, " ".join(result["caveats"]))
+                self.assertNotIn(message, result["hint"])
+                for caveat in result["caveats"]:
+                    self.assertNotIn(caveat, result["hint"])
+
+    def test_lazy_fp_caveat_requires_extended_frame_and_lspact(self):
+        for exc_return in (0xFFFFFFF9, 0xFFFFFFE9):
+            for fpccr in (None, 0, 0xC0000000, 0xC0000001):
+                with self.subTest(exc_return=hex(exc_return), fpccr=fpccr):
+                    registers = dict(pc=0, lr=0, sp=0, xpsr=0, exc_return=exc_return)
+                    if fpccr is not None:
+                        registers["fpccr"] = fpccr
+                    with patch.object(ac, "symbolize", return_value={}):
+                        result = ac.analyze(registers, "unused.elf")
+                    if exc_return == 0xFFFFFFE9 and fpccr == 0xC0000001:
+                        self.assertIn("FP registers were not saved yet", result["caveats"][0])
+                    else:
+                        self.assertEqual(result["caveats"], [])
 
     def test_frame_size_and_alignment(self):
         for exc_return in (0xFFFFFFF1, 0xFFFFFFF9, 0xFFFFFFFD,
@@ -81,9 +116,9 @@ class DecoderTests(unittest.TestCase):
         fault, hint = ac.classify({"cfsr": 0x2000000}, ["DIVBYZERO"], ["FORCED"])
         self.assertEqual(fault, "HardFault")
         self.assertIn("divisor", hint)
-        self.assertIn("escalated", hint)
+        self.assertNotIn("escalated", hint)
         _, hint = ac.classify({}, [], ["FORCED"])
-        self.assertIn("CFSR is zero", hint)
+        self.assertNotIn("CFSR is zero", hint)
 
     def test_memmanage_classification(self):
         fault, hint = ac.classify({"cfsr": 2}, ["DACCVIOL"], [])
@@ -138,7 +173,7 @@ class SavedDumpTests(unittest.TestCase):
             with self.subTest(fixture=folder.name):
                 registers = ac.parse_dump((folder / "dump.txt").read_text())
                 expected = json.loads((folder / "expected.json").read_text())
-                self.assertEqual(set(registers), set(ac.KEYS))
+                self.assertEqual(set(registers), set(ac.KEYS) - {"fpccr"})
                 self.assertEqual(registers["exc_return"],
                                  int(expected.get("exc_return", "0xfffffff9"), 16))
                 self.assertTrue(registers["xpsr"] & (1 << 24))
@@ -166,7 +201,7 @@ class SavedDumpTests(unittest.TestCase):
                 result = json.loads(run.stdout)
                 self.assertEqual(set(result), {"class", "fault_type", "cfsr_bits", "hfsr_bits",
                                                "pc", "lr", "bfar", "mmfar", "hint",
-                                               "frame", "pre_exception_sp"})
+                                               "frame", "pre_exception_sp", "caveats"})
                 expected = json.loads((folder / "expected.json").read_text())
                 self.assertEqual(result["frame"], expected["frame"])
                 self.assertEqual(result["class"], expected.get("class"))
@@ -183,6 +218,8 @@ class SavedDumpTests(unittest.TestCase):
                 self.assertIsInstance(result["cfsr_bits"], list)
                 self.assertIsInstance(result["hfsr_bits"], list)
                 self.assertIsInstance(result["hint"], str)
+                self.assertIsInstance(result["caveats"], list)
+                self.assertEqual(bool(result["caveats"]), "FORCED" in result["hfsr_bits"])
 
     def test_fault_address_validity(self):
         folder = Path("fixtures/unmapped_write_busfault")
@@ -219,7 +256,72 @@ class SavedDumpTests(unittest.TestCase):
         self.assertIn("BFAR: invalid", run.stdout)
 
 
+class OfflineDemoTests(unittest.TestCase):
+    def test_full_and_thin_dumps(self):
+        folder = Path("examples/offline")
+        full = ac.parse_dump((folder / "crash_full.txt").read_text())
+        thin = ac.parse_dump((folder / "crash_thin.txt").read_text())
+        self.assertEqual(set(full), set(ac.KEYS) - {"fpccr"})
+        self.assertNotIn("bfar", thin)
+        self.assertEqual(thin["cfsr"], 0x400)
+        self.assertGreater(thin["pc"], full["pc"])
+        result = ac.analyze(full, folder / "firmware.elf")
+        self.assertEqual(result["pc"]["function"], "write_unmapped")
+        self.assertEqual(result["bfar"], 0x60000000)
+        self.assertEqual(result["caveats"], [])
+        result = ac.analyze(thin, folder / "firmware.elf")
+        self.assertIsNone(result["bfar"])
+        self.assertIsNone(result["class"])
+        self.assertIn("PC may not be the faulting instruction", result["caveats"][0])
+        self.assertNotIn("load/store pointer", result["hint"])
+
+    def test_demo_without_qemu_or_compiler(self):
+        with TemporaryDirectory() as directory:
+            for name in ("make", "python3", "arm-none-eabi-addr2line"):
+                Path(directory, name).symlink_to(shutil.which(name))
+            env = dict(os.environ, PATH=directory)
+            self.assertIsNone(shutil.which("qemu-system-arm", path=directory))
+            self.assertIsNone(shutil.which("arm-none-eabi-gcc", path=directory))
+            run = subprocess.run(["make", "demo"], env=env, check=True,
+                                 capture_output=True, text=True)
+        self.assertIn("CFSR: PRECISERR, BFARVALID", run.stdout)
+        self.assertIn("CFSR: IMPRECISERR", run.stdout)
+        self.assertIn("Caveat: PC may not be the faulting instruction", run.stdout)
+
+
 class RunnerTests(unittest.TestCase):
+    def test_fixture_sources(self):
+        for path in Path("fixtures").glob("*/expected.json"):
+            expected = json.loads(path.read_text())
+            self.assertIn(expected["source"], ("qemu_measured", "hand_built", "real_device"))
+            if path.parent.name == "fault_in_isr":
+                self.assertEqual(expected["source"], "hand_built")
+                self.assertEqual(expected["status"], "not_reproduced")
+            else:
+                self.assertEqual(expected["source"], "qemu_measured")
+
+    def test_only_qemu_measured_sources_can_be_verified(self):
+        folder = Path("fixtures/unmapped_write_busfault")
+        expected_text = (folder / "expected.json").read_text()
+        output = (folder / "dump.txt").read_text()
+        loads = json.loads
+        for source in ("qemu_measured", "hand_built", "real_device"):
+            for version in (None, "test"):
+                with self.subTest(source=source, version=version):
+                    def load(text):
+                        value = loads(text)
+                        if text == expected_text:
+                            value["source"] = source
+                        return value
+
+                    with patch.object(run_fixtures.json, "loads", side_effect=load), \
+                         patch.object(run_fixtures, "run_qemu", return_value=output):
+                        result = run_fixtures.run_fixture(folder, version)
+                    verified = source == "qemu_measured" and version is not None
+                    self.assertEqual(result["source"], source)
+                    self.assertEqual(result["status"], "verified" if verified else "static_only")
+                    self.assertEqual(result["passed"], verified)
+
     def test_exact_expectation_mismatches_fail(self):
         loads = json.loads
         for name, changes in (
