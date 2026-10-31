@@ -23,7 +23,8 @@ No image means no decoding. Ask for it; don't guess function names. If the user 
    - Static analysis only: not run in an emulator (always the case for watchdog resets and use-after-free)
    - Not reproduced: the emulator gave different bits
    Report only the counts the test suite printed.
-5. **Report.** Fault class and bits, function and line, most likely cause, other candidates with how to rule them out, one concrete fix, and the status from step 4.
+5. **Report.** Fault class and bits, function and line, most likely cause, other candidates with how to rule them out, one concrete fix, and the status from step 4. Tag the cause as Confirmed (the registers or a rerun show it), Likely, or Speculative. Never write Confirmed for a cause you only inferred.
+   After the user applies the fix, rerun the repro and check the fault is gone; until then the fix is a suggestion.
 
 ## Gotchas
 - Imprecise bus faults (IMPRECISERR) can be reported after the instruction that caused them, so the PC may point past the real culprit.
