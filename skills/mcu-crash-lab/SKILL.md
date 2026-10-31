@@ -23,10 +23,19 @@ No image means no decoding. Ask for it; don't guess function names. If the user 
    - Static analysis only: not run in an emulator (always the case for watchdog resets and use-after-free)
    - Not reproduced: the emulator gave different bits
    Report only the counts the test suite printed.
-5. **Report.** Fault class and bits, function and line, most likely cause, other candidates with how to rule them out, one concrete fix, and the status from step 4. Tag the cause as Confirmed (the registers or a rerun show it), Likely, or Speculative. Never write Confirmed for a cause you only inferred.
+5. **Report.** Fault class and bits, function and line, the cause, one concrete fix, and the status from step 4. Tag each cause:
+   - Confirmed: the registers or a rerun show it
+   - Likely: fits the evidence, nothing contradicts it
+   - Speculative: fits, but other causes fit equally well
+   - Undetermined: the evidence is not enough to pick; say so
+   Never write Confirmed for a cause you only inferred. For each candidate cause write the evidence for it, any fact that conflicts with it, what extra material would tell it apart from the others (a second dump, the map, the code around PC), and what would make you drop it.
    After the user applies the fix, rerun the repro and check the fault is gone; until then the fix is a suggestion.
 
 ## Gotchas
 - Imprecise bus faults (IMPRECISERR) can be reported after the instruction that caused them, so the PC may point past the real culprit.
 - DIVBYZERO and UNALIGNED only fault when `CCR.DIV_0_TRP` / `CCR.UNALIGN_TRP` are set.
 - ESP32 and Zephyr logs: see `references/esp32-panic.md` and `references/zephyr-fatal.md`.
+- STKERR and MSTKERR mean the exception frame may be incomplete, so stacked PC and LR can be wrong or missing.
+- FORCED only says an escalation happened. The cause is in CFSR.
+- A matching function name does not prove the image is the one that crashed. Compare the build ID (`readelf -n`) with the flashed binary when you can.
+- An extended (FPU) frame being allocated does not mean the FP registers were saved: with lazy stacking, check FPCCR.LSPACT.
