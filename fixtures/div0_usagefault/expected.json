@@ -1,0 +1,10 @@
+{
+  "machine": "mps2-an386",
+  "fault_type": "UsageFault",
+  "function": "divide_by_zero",
+  "file": "main.c",
+  "line": 10,
+  "cfsr_bits": [
+    "DIVBYZERO"
+  ]
+}

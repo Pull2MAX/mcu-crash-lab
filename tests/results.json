@@ -1,0 +1,98 @@
+{
+  "verified_count": 3,
+  "passed_count": 3,
+  "failed_count": 0,
+  "fixtures": [
+    {
+      "name": "div0_usagefault",
+      "machine": "mps2-an386",
+      "passed": true,
+      "status": "verified in qemu-system-arm 10.0.13 (mps2-an386)",
+      "elf": "fixtures/div0_usagefault/build/firmware.elf",
+      "dump": "fixtures/div0_usagefault/build/dump.txt",
+      "analysis": {
+        "fault_type": "UsageFault",
+        "cfsr_bits": [
+          "DIVBYZERO"
+        ],
+        "hfsr_bits": [],
+        "pc": {
+          "addr": "0x00000052",
+          "function": "divide_by_zero",
+          "file": "main.c",
+          "line": 10
+        },
+        "lr": {
+          "addr": "0x00000081",
+          "function": "main",
+          "file": "main.c",
+          "line": 18
+        },
+        "bfar": null,
+        "mmfar": null,
+        "hint": "Check the divisor before integer division; CCR.DIV_0_TRP is set."
+      }
+    },
+    {
+      "name": "undefined_instruction_usagefault",
+      "machine": "mps2-an386",
+      "passed": true,
+      "status": "verified in qemu-system-arm 10.0.13 (mps2-an386)",
+      "elf": "fixtures/undefined_instruction_usagefault/build/firmware.elf",
+      "dump": "fixtures/undefined_instruction_usagefault/build/dump.txt",
+      "analysis": {
+        "fault_type": "UsageFault",
+        "cfsr_bits": [
+          "UNDEFINSTR"
+        ],
+        "hfsr_bits": [],
+        "pc": {
+          "addr": "0x00000044",
+          "function": "undefined_instruction",
+          "file": "main.c",
+          "line": 3
+        },
+        "lr": {
+          "addr": "0x00000057",
+          "function": "main",
+          "file": "main.c",
+          "line": 8
+        },
+        "bfar": null,
+        "mmfar": null,
+        "hint": "Check the instruction at PC and the build CPU flags."
+      }
+    },
+    {
+      "name": "unmapped_write_busfault",
+      "machine": "mps2-an386",
+      "passed": true,
+      "status": "verified in qemu-system-arm 10.0.13 (mps2-an386)",
+      "elf": "fixtures/unmapped_write_busfault/build/firmware.elf",
+      "dump": "fixtures/unmapped_write_busfault/build/dump.txt",
+      "analysis": {
+        "fault_type": "BusFault",
+        "cfsr_bits": [
+          "PRECISERR",
+          "BFARVALID"
+        ],
+        "hfsr_bits": [],
+        "pc": {
+          "addr": "0x00000050",
+          "function": "write_unmapped",
+          "file": "main.c",
+          "line": 7
+        },
+        "lr": {
+          "addr": "0x00000065",
+          "function": "main",
+          "file": "main.c",
+          "line": 12
+        },
+        "bfar": 1610612736,
+        "mmfar": null,
+        "hint": "Check the load/store pointer and the board memory map."
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+*.elf
+*.o
+*.map
+*.bin
+build/
+__pycache__/
+*.pyc
+ref/
