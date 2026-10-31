@@ -14,17 +14,32 @@ It needs `arm-none-eabi-addr2line` on PATH.
 
 ## Fixtures
 
-3 verified scenarios (from the last `make test`, see `tests/results.json`).
+7 verified scenarios (from the last `make test`, see `tests/results.json`).
 
 | Fixture | Fault | Status |
 |---|---|---|
 | unmapped_write_busfault | precise BusFault (PRECISERR, BFARVALID) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
 | div0_usagefault | UsageFault (DIVBYZERO, CCR.DIV_0_TRP set) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
 | undefined_instruction_usagefault | UsageFault (UNDEFINSTR) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| fpu_frame_fault | BusFault with FPU extended frame (EXC_RETURN 0xFFFFFFE9) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| mpu_violation | MemManage (DACCVIOL, MMARVALID), MPU read-only region | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| mpu_violation_forced | same, MEMFAULTENA off: HardFault with HFSR FORCED | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| fault_in_isr_unmapped | BusFault in SysTick_Handler, escalated to HardFault (FORCED) | verified in qemu-system-arm 10.0.13 (mps2-an386) |
+| fault_in_isr | NULL write in SysTick_Handler | not reproduced (address 0 is RAM on mps2-an386, no fault) |
 
 The BusFault fixture writes to 0x60000000, not to NULL. On the MPS2 AN386 model address 0 is RAM, so a NULL write does not fault there. On real parts where 0 is flash or unmapped, a NULL write gives the same PRECISERR/BFARVALID pattern, but that is not what this fixture tests.
 
 Each fixture has `expected.json` with the faulting function, line (marked `/* FAULT HERE */` in main.c) and CFSR bits. `dump.txt` is the dump captured from the QEMU run, used by the unit tests and as the input when QEMU is missing. Without QEMU the runner reports "static analysis only" and counts zero verified scenarios.
+
+Notes on measured values that differ from tasks/batch2.md:
+
+- fault_in_isr_unmapped: the spec predicted a plain BusFault. QEMU gives CFSR 0x8200 with HFSR FORCED, because SysTick and BusFault both run at priority 0, so the BusFault cannot preempt and escalates. xPSR exception number 15, EXC_RETURN 0xFFFFFFF1 and PC in SysTick_Handler match the spec.
+- fpu_frame_fault: the stacked PC is at SP+0x18 in both basic and extended frames; the FP registers are stored after the core registers. The spec's wording about skipping S0-S15 before the PC is wrong. EXC_RETURN and the decoded function match.
+- fault_in_isr keeps the predicted values in expected.json and is reported as NOT REPRODUCED by the test runner. It is not counted as verified.
+
+Fixtures marked with a fixed variant (fpu_frame_fault, mpu_violation, mpu_violation_forced, fault_in_isr, fault_in_isr_unmapped) also build fixed/main.c, which must print DONE.
+
+Scoring a model's crash conclusions against expected.json is planned, not done. Nothing here measures model accuracy.
 
 ## Test
 

@@ -1,0 +1,16 @@
+{
+  "machine": "mps2-an386",
+  "status": "verified",
+  "class": "mpu_violation",
+  "frame": "basic",
+  "exc_return": "0xfffffff9",
+  "cfsr": "0x00000082",
+  "hfsr": "0x00000000",
+  "mmfar_symbol": "buffer",
+  "isr_number": 0,
+  "fault_type": "MemManage",
+  "function": "write_buffer",
+  "file": "main.c",
+  "line": 7,
+  "cfsr_bits": ["DACCVIOL", "MMARVALID"]
+}

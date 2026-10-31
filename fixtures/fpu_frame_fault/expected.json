@@ -1,5 +1,7 @@
 {
   "machine": "mps2-an386",
+  "status": "verified",
+  "class": "fpu_frame_fault",
   "frame": "extended",
   "exc_return": "0xffffffe9",
   "cfsr": "0x00008200",

@@ -105,7 +105,12 @@ def analyze(registers, elf):
     basic = bool(registers["exc_return"] & (1 << 4))
     frame_size = 0x20 if basic else 0x68
     padding = 4 if registers["xpsr"] & (1 << 9) else 0
+    fault_class = ("mpu_violation" if "MMARVALID" in cfsr_bits and
+                   {"DACCVIOL", "IACCVIOL"}.intersection(cfsr_bits) else
+                   "fpu_frame_fault" if not basic else
+                   "fault_in_isr" if registers["xpsr"] & 0x1FF else None)
     return {
+        "class": fault_class,
         "fault_type": fault_type,
         "frame": "basic" if basic else "extended",
         "pre_exception_sp": registers["sp"] + frame_size + padding,

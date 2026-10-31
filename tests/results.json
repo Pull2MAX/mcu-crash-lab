@@ -1,16 +1,23 @@
 {
-  "verified_count": 4,
-  "passed_count": 4,
+  "verified_count": 7,
+  "passed_count": 7,
   "failed_count": 0,
+  "not_reproduced_count": 1,
+  "static_only_count": 0,
   "fixtures": [
     {
       "name": "div0_usagefault",
       "machine": "mps2-an386",
       "passed": true,
-      "status": "verified in qemu-system-arm 10.0.13 (mps2-an386)",
+      "status": "verified",
+      "reason": null,
+      "mismatches": [],
+      "qemu_version": "10.0.13",
+      "fixed": null,
       "elf": "fixtures/div0_usagefault/build/firmware.elf",
       "dump": "fixtures/div0_usagefault/build/dump.txt",
       "analysis": {
+        "class": null,
         "fault_type": "UsageFault",
         "frame": "basic",
         "pre_exception_sp": 541065160,
@@ -33,16 +40,114 @@
         "bfar": null,
         "mmfar": null,
         "hint": "Check the divisor before integer division; CCR.DIV_0_TRP is set."
+      },
+      "registers": {
+        "R0": "0x00000000",
+        "R1": "0x00000000",
+        "R2": "0x00000000",
+        "R3": "0x0000002a",
+        "R12": "0x00000000",
+        "LR": "0x00000081",
+        "PC": "0x00000052",
+        "xPSR": "0x21000000",
+        "EXC_RETURN": "0xfffffff9",
+        "SP": "0x203fffa8",
+        "CFSR": "0x02000000",
+        "HFSR": "0x00000000",
+        "MMFAR": "0x00000000",
+        "BFAR": "0x00000000"
+      }
+    },
+    {
+      "name": "fault_in_isr",
+      "machine": "mps2-an386",
+      "passed": false,
+      "status": "not_reproduced",
+      "reason": "NULL writes succeed in writable SSRAM on mps2-an386; no fault frame is produced.",
+      "mismatches": [
+        "no fault frame; reached DONE"
+      ],
+      "qemu_version": "10.0.13",
+      "fixed": "DONE",
+      "elf": "fixtures/fault_in_isr/build/firmware.elf",
+      "dump": "fixtures/fault_in_isr/build/dump.txt",
+      "analysis": null,
+      "registers": {
+        "CFSR": "0x00000000",
+        "HFSR": "0x00000000",
+        "MMFAR": "0x00000000",
+        "BFAR": "0x00000000"
+      }
+    },
+    {
+      "name": "fault_in_isr_unmapped",
+      "machine": "mps2-an386",
+      "passed": true,
+      "status": "verified",
+      "reason": null,
+      "mismatches": [],
+      "qemu_version": "10.0.13",
+      "fixed": "DONE",
+      "elf": "fixtures/fault_in_isr_unmapped/build/firmware.elf",
+      "dump": "fixtures/fault_in_isr_unmapped/build/dump.txt",
+      "analysis": {
+        "class": "fault_in_isr",
+        "fault_type": "HardFault",
+        "frame": "basic",
+        "pre_exception_sp": 541065148,
+        "cfsr_bits": [
+          "PRECISERR",
+          "BFARVALID"
+        ],
+        "hfsr_bits": [
+          "FORCED"
+        ],
+        "pc": {
+          "addr": "0x00000076",
+          "function": "SysTick_Handler",
+          "file": "main.c",
+          "line": 7
+        },
+        "lr": {
+          "addr": "0xfffffff9",
+          "function": null,
+          "file": null,
+          "line": null
+        },
+        "bfar": 1610612736,
+        "mmfar": null,
+        "hint": "Check the load/store pointer and the board memory map. A configurable fault escalated to HardFault; inspect CFSR and SHCSR. LR is EXC_RETURN; supply the stacked LR for the caller location."
+      },
+      "registers": {
+        "R0": "0x00000000",
+        "R1": "0x00000000",
+        "R2": "0x0000002a",
+        "R3": "0x60000000",
+        "R12": "0x00000000",
+        "LR": "0xfffffff9",
+        "PC": "0x00000076",
+        "xPSR": "0x2100020f",
+        "EXC_RETURN": "0xfffffff1",
+        "SP": "0x203fff98",
+        "CFSR": "0x00008200",
+        "HFSR": "0x40000000",
+        "MMFAR": "0x00000000",
+        "BFAR": "0x60000000"
       }
     },
     {
       "name": "fpu_frame_fault",
       "machine": "mps2-an386",
       "passed": true,
-      "status": "verified in qemu-system-arm 10.0.13 (mps2-an386)",
+      "status": "verified",
+      "reason": null,
+      "mismatches": [],
+      "qemu_version": "10.0.13",
+      "fixed": "DONE",
       "elf": "fixtures/fpu_frame_fault/build/firmware.elf",
       "dump": "fixtures/fpu_frame_fault/build/dump.txt",
       "analysis": {
+        "class": "fpu_frame_fault",
         "fault_type": "BusFault",
         "frame": "extended",
         "pre_exception_sp": 541065164,
@@ -66,16 +171,147 @@
         "bfar": 1610612736,
         "mmfar": null,
         "hint": "Check the load/store pointer and the board memory map."
+      },
+      "registers": {
+        "R0": "0x00000000",
+        "R1": "0x00000000",
+        "R2": "0x0000002a",
+        "R3": "0x60000000",
+        "R12": "0x00000000",
+        "LR": "0x0000007b",
+        "PC": "0x0000004a",
+        "xPSR": "0x21000200",
+        "EXC_RETURN": "0xffffffe9",
+        "SP": "0x203fff60",
+        "CFSR": "0x00008200",
+        "HFSR": "0x00000000",
+        "MMFAR": "0x00000000",
+        "BFAR": "0x60000000"
+      }
+    },
+    {
+      "name": "mpu_violation",
+      "machine": "mps2-an386",
+      "passed": true,
+      "status": "verified",
+      "reason": null,
+      "mismatches": [],
+      "qemu_version": "10.0.13",
+      "fixed": "DONE",
+      "elf": "fixtures/mpu_violation/build/firmware.elf",
+      "dump": "fixtures/mpu_violation/build/dump.txt",
+      "analysis": {
+        "class": "mpu_violation",
+        "fault_type": "MemManage",
+        "frame": "basic",
+        "pre_exception_sp": 541065180,
+        "cfsr_bits": [
+          "DACCVIOL",
+          "MMARVALID"
+        ],
+        "hfsr_bits": [],
+        "pc": {
+          "addr": "0x00000094",
+          "function": "write_buffer",
+          "file": "main.c",
+          "line": 7
+        },
+        "lr": {
+          "addr": "0x000000c1",
+          "function": "main",
+          "file": "main.c",
+          "line": 14
+        },
+        "bfar": null,
+        "mmfar": 536870912,
+        "hint": "Check the pointer and MPU data permissions."
+      },
+      "registers": {
+        "R0": "0x20000000",
+        "R1": "0x00000006",
+        "R2": "0x0000002a",
+        "R3": "0x20000000",
+        "R12": "0x00000000",
+        "LR": "0x000000c1",
+        "PC": "0x00000094",
+        "xPSR": "0x01000200",
+        "EXC_RETURN": "0xfffffff9",
+        "SP": "0x203fffb8",
+        "CFSR": "0x00000082",
+        "HFSR": "0x00000000",
+        "MMFAR": "0x20000000",
+        "BFAR": "0x00000000"
+      }
+    },
+    {
+      "name": "mpu_violation_forced",
+      "machine": "mps2-an386",
+      "passed": true,
+      "status": "verified",
+      "reason": null,
+      "mismatches": [],
+      "qemu_version": "10.0.13",
+      "fixed": "DONE",
+      "elf": "fixtures/mpu_violation_forced/build/firmware.elf",
+      "dump": "fixtures/mpu_violation_forced/build/dump.txt",
+      "analysis": {
+        "class": "mpu_violation",
+        "fault_type": "HardFault",
+        "frame": "basic",
+        "pre_exception_sp": 541065180,
+        "cfsr_bits": [
+          "DACCVIOL",
+          "MMARVALID"
+        ],
+        "hfsr_bits": [
+          "FORCED"
+        ],
+        "pc": {
+          "addr": "0x00000094",
+          "function": "write_buffer",
+          "file": "main.c",
+          "line": 7
+        },
+        "lr": {
+          "addr": "0x000000c1",
+          "function": "main",
+          "file": "main.c",
+          "line": 14
+        },
+        "bfar": null,
+        "mmfar": 536870912,
+        "hint": "Check the pointer and MPU data permissions. A configurable fault escalated to HardFault; inspect CFSR and SHCSR."
+      },
+      "registers": {
+        "R0": "0x20000000",
+        "R1": "0x00000006",
+        "R2": "0x0000002a",
+        "R3": "0x20000000",
+        "R12": "0x00000000",
+        "LR": "0x000000c1",
+        "PC": "0x00000094",
+        "xPSR": "0x01000200",
+        "EXC_RETURN": "0xfffffff9",
+        "SP": "0x203fffb8",
+        "CFSR": "0x00000082",
+        "HFSR": "0x40000000",
+        "MMFAR": "0x20000000",
+        "BFAR": "0x00000000"
       }
     },
     {
       "name": "undefined_instruction_usagefault",
       "machine": "mps2-an386",
       "passed": true,
-      "status": "verified in qemu-system-arm 10.0.13 (mps2-an386)",
+      "status": "verified",
+      "reason": null,
+      "mismatches": [],
+      "qemu_version": "10.0.13",
+      "fixed": null,
       "elf": "fixtures/undefined_instruction_usagefault/build/firmware.elf",
       "dump": "fixtures/undefined_instruction_usagefault/build/dump.txt",
       "analysis": {
+        "class": null,
         "fault_type": "UsageFault",
         "frame": "basic",
         "pre_exception_sp": 541065180,
@@ -98,16 +334,37 @@
         "bfar": null,
         "mmfar": null,
         "hint": "Check the instruction at PC and the build CPU flags."
+      },
+      "registers": {
+        "R0": "0x00000000",
+        "R1": "0x00000000",
+        "R2": "0xe000ed24",
+        "R3": "0x00070000",
+        "R12": "0x00000000",
+        "LR": "0x00000057",
+        "PC": "0x00000044",
+        "xPSR": "0x61000200",
+        "EXC_RETURN": "0xfffffff9",
+        "SP": "0x203fffb8",
+        "CFSR": "0x00010000",
+        "HFSR": "0x00000000",
+        "MMFAR": "0x00000000",
+        "BFAR": "0x00000000"
       }
     },
     {
       "name": "unmapped_write_busfault",
       "machine": "mps2-an386",
       "passed": true,
-      "status": "verified in qemu-system-arm 10.0.13 (mps2-an386)",
+      "status": "verified",
+      "reason": null,
+      "mismatches": [],
+      "qemu_version": "10.0.13",
+      "fixed": null,
       "elf": "fixtures/unmapped_write_busfault/build/firmware.elf",
       "dump": "fixtures/unmapped_write_busfault/build/dump.txt",
       "analysis": {
+        "class": null,
         "fault_type": "BusFault",
         "frame": "basic",
         "pre_exception_sp": 541065168,
@@ -131,6 +388,22 @@
         "bfar": 1610612736,
         "mmfar": null,
         "hint": "Check the load/store pointer and the board memory map."
+      },
+      "registers": {
+        "R0": "0x00000000",
+        "R1": "0x00000000",
+        "R2": "0x0000002a",
+        "R3": "0x60000000",
+        "R12": "0x00000000",
+        "LR": "0x00000065",
+        "PC": "0x00000050",
+        "xPSR": "0x21000000",
+        "EXC_RETURN": "0xfffffff9",
+        "SP": "0x203fffb0",
+        "CFSR": "0x00008200",
+        "HFSR": "0x00000000",
+        "MMFAR": "0x00000000",
+        "BFAR": "0x60000000"
       }
     }
   ]
