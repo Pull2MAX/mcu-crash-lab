@@ -1,5 +1,6 @@
 {
   "machine": "mps2-an386",
+  "frame": "basic",
   "fault_type": "UsageFault",
   "function": "undefined_instruction",
   "file": "main.c",

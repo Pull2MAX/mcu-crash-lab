@@ -51,6 +51,21 @@ class DecoderTests(unittest.TestCase):
         self.assertEqual(registers, {"pc": 0x08001234, "lr": 0x8000001,
                                      "cfsr": 0x200, "exc_return": 0xFFFFFFF9})
 
+    def test_frame_size_and_alignment(self):
+        for exc_return in (0xFFFFFFF1, 0xFFFFFFF9, 0xFFFFFFFD,
+                           0xFFFFFFE1, 0xFFFFFFE9, 0xFFFFFFED):
+            for padding in (0, 4):
+                with self.subTest(exc_return=hex(exc_return), padding=padding):
+                    registers = {"pc": 0x40, "lr": 0x81, "sp": 0x20001000,
+                                 "exc_return": exc_return,
+                                 "xpsr": 0x01000200 if padding else 0x01000000}
+                    with patch.object(ac, "symbolize", return_value={}):
+                        result = ac.analyze(registers, "unused.elf")
+                    basic = exc_return in (0xFFFFFFF1, 0xFFFFFFF9, 0xFFFFFFFD)
+                    self.assertEqual(result["frame"], "basic" if basic else "extended")
+                    self.assertEqual(result["pre_exception_sp"],
+                                     0x20001000 + (0x20 if basic else 0x68) + padding)
+
     def test_null_hint(self):
         fault, hint = ac.classify({"cfsr": 0x8200, "bfar": 4}, ac.decode_cfsr(0x8200), [])
         self.assertEqual(fault, "BusFault")
@@ -103,8 +118,10 @@ class SavedDumpTests(unittest.TestCase):
         for folder in self.folders:
             with self.subTest(fixture=folder.name):
                 registers = ac.parse_dump((folder / "dump.txt").read_text())
+                expected = json.loads((folder / "expected.json").read_text())
                 self.assertEqual(set(registers), set(ac.KEYS))
-                self.assertEqual(registers["exc_return"], 0xFFFFFFF9)
+                self.assertEqual(registers["exc_return"],
+                                 0xFFFFFFE9 if expected["frame"] == "extended" else 0xFFFFFFF9)
                 self.assertTrue(registers["xpsr"] & (1 << 24))
                 self.assertEqual(registers["hfsr"], 0)
                 result = run_fixtures.run_fixture(folder, None)
@@ -124,7 +141,11 @@ class SavedDumpTests(unittest.TestCase):
                 ], check=True, capture_output=True, text=True)
                 result = json.loads(run.stdout)
                 self.assertEqual(set(result), {"fault_type", "cfsr_bits", "hfsr_bits",
-                                               "pc", "lr", "bfar", "mmfar", "hint"})
+                                               "pc", "lr", "bfar", "mmfar", "hint",
+                                               "frame", "pre_exception_sp"})
+                expected = json.loads((folder / "expected.json").read_text())
+                self.assertEqual(result["frame"], expected["frame"])
+                self.assertIsInstance(result["pre_exception_sp"], int)
                 for key in ("pc", "lr"):
                     self.assertEqual(set(result[key]), {"addr", "function", "file", "line"})
                     self.assertRegex(result[key]["addr"], r"^0x[0-9a-f]{8}$")
@@ -162,6 +183,8 @@ class SavedDumpTests(unittest.TestCase):
             "--elf", str(folder / "build/firmware.elf"),
         ], check=True, capture_output=True, text=True)
         self.assertIn("Fault: UsageFault", run.stdout)
+        self.assertIn("Frame: basic", run.stdout)
+        self.assertIn("Pre-exception SP: 0x203fffc8", run.stdout)
         self.assertIn("DIVBYZERO", run.stdout)
         self.assertIn("divide_by_zero (main.c:10)", run.stdout)
         self.assertIn("BFAR: invalid", run.stdout)

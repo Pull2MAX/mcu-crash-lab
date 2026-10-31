@@ -1,6 +1,6 @@
 PYTHON = python3
 export PYTHONDONTWRITEBYTECODE = 1
-FIXTURES = div0_usagefault undefined_instruction_usagefault unmapped_write_busfault
+FIXTURES = div0_usagefault undefined_instruction_usagefault unmapped_write_busfault fpu_frame_fault
 
 .PHONY: test clean
 test:

@@ -102,8 +102,13 @@ def analyze(registers, elf):
     cfsr_bits = decode_cfsr(registers.get("cfsr", 0))
     hfsr_bits = decode_hfsr(registers.get("hfsr", 0))
     fault_type, hint = classify(registers, cfsr_bits, hfsr_bits)
+    basic = bool(registers["exc_return"] & (1 << 4))
+    frame_size = 0x20 if basic else 0x68
+    padding = 4 if registers["xpsr"] & (1 << 9) else 0
     return {
         "fault_type": fault_type,
+        "frame": "basic" if basic else "extended",
+        "pre_exception_sp": registers["sp"] + frame_size + padding,
         "cfsr_bits": cfsr_bits,
         "hfsr_bits": hfsr_bits,
         "pc": symbolize(registers["pc"], elf),
@@ -125,6 +130,8 @@ def main():
         print(json.dumps(result, indent=2))
         return
     print(f"Fault: {result['fault_type']}")
+    print(f"Frame: {result['frame']}")
+    print(f"Pre-exception SP: 0x{result['pre_exception_sp']:08x}")
     for key in ("cfsr_bits", "hfsr_bits"):
         print(f"{key.split('_')[0].upper()}: {', '.join(result[key]) or 'none'}")
     for key in ("pc", "lr"):

@@ -1,0 +1,16 @@
+{
+  "machine": "mps2-an386",
+  "frame": "extended",
+  "exc_return": "0xffffffe9",
+  "cfsr": "0x00008200",
+  "hfsr": "0x00000000",
+  "bfar": "0x60000000",
+  "fault_type": "BusFault",
+  "function": "write_unmapped",
+  "file": "main.c",
+  "line": 5,
+  "cfsr_bits": [
+    "PRECISERR",
+    "BFARVALID"
+  ]
+}

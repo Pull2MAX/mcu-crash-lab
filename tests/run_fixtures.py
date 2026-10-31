@@ -42,7 +42,12 @@ def run_fixture(folder, qemu_version):
         check=True, capture_output=True, text=True,
     )
     analysis = json.loads(result.stdout)
-    for key in ("fault_type", "cfsr_bits"):
+    registers = dict(re.findall(r"^(\w+)=0x([0-9a-fA-F]{8})$", dump.read_text(), re.MULTILINE))
+    for key in ("exc_return", "cfsr", "hfsr", "bfar"):
+        if key in expected:
+            actual = int(registers[key.upper()], 16)
+            assert actual == int(expected[key], 16), f"{key}: 0x{actual:08x} != {expected[key]}"
+    for key in ("fault_type", "cfsr_bits", "frame"):
         assert analysis[key] == expected[key], f"{key}: {analysis[key]} != {expected[key]}"
     for key in ("function", "file", "line"):
         actual = analysis["pc"][key]

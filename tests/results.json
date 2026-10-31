@@ -1,6 +1,6 @@
 {
-  "verified_count": 3,
-  "passed_count": 3,
+  "verified_count": 4,
+  "passed_count": 4,
   "failed_count": 0,
   "fixtures": [
     {
@@ -12,6 +12,8 @@
       "dump": "fixtures/div0_usagefault/build/dump.txt",
       "analysis": {
         "fault_type": "UsageFault",
+        "frame": "basic",
+        "pre_exception_sp": 541065160,
         "cfsr_bits": [
           "DIVBYZERO"
         ],
@@ -34,6 +36,39 @@
       }
     },
     {
+      "name": "fpu_frame_fault",
+      "machine": "mps2-an386",
+      "passed": true,
+      "status": "verified in qemu-system-arm 10.0.13 (mps2-an386)",
+      "elf": "fixtures/fpu_frame_fault/build/firmware.elf",
+      "dump": "fixtures/fpu_frame_fault/build/dump.txt",
+      "analysis": {
+        "fault_type": "BusFault",
+        "frame": "extended",
+        "pre_exception_sp": 541065164,
+        "cfsr_bits": [
+          "PRECISERR",
+          "BFARVALID"
+        ],
+        "hfsr_bits": [],
+        "pc": {
+          "addr": "0x0000004a",
+          "function": "write_unmapped",
+          "file": "main.c",
+          "line": 5
+        },
+        "lr": {
+          "addr": "0x0000007b",
+          "function": "main",
+          "file": "main.c",
+          "line": 13
+        },
+        "bfar": 1610612736,
+        "mmfar": null,
+        "hint": "Check the load/store pointer and the board memory map."
+      }
+    },
+    {
       "name": "undefined_instruction_usagefault",
       "machine": "mps2-an386",
       "passed": true,
@@ -42,6 +77,8 @@
       "dump": "fixtures/undefined_instruction_usagefault/build/dump.txt",
       "analysis": {
         "fault_type": "UsageFault",
+        "frame": "basic",
+        "pre_exception_sp": 541065180,
         "cfsr_bits": [
           "UNDEFINSTR"
         ],
@@ -72,6 +109,8 @@
       "dump": "fixtures/unmapped_write_busfault/build/dump.txt",
       "analysis": {
         "fault_type": "BusFault",
+        "frame": "basic",
+        "pre_exception_sp": 541065168,
         "cfsr_bits": [
           "PRECISERR",
           "BFARVALID"

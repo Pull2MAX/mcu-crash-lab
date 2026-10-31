@@ -38,6 +38,7 @@ static void dump_value(const char *name, uint32_t value)
 __attribute__((noreturn)) void fault_dump(uint32_t *frame, uint32_t exc_return)
 {
     static const char *const names[] = {"R0", "R1", "R2", "R3", "R12", "LR", "PC", "xPSR"};
+    /* Both frame types start with core registers; FP storage follows xPSR. */
     for (unsigned i = 0; i < 8; i++)
         dump_value(names[i], frame[i]);
     dump_value("EXC_RETURN", exc_return);
@@ -67,6 +68,10 @@ static void Default_Handler(void)
 
 void Reset_Handler(void)
 {
+#ifdef FIXTURE_ENABLE_FPU
+    *(volatile uint32_t *)0xE000ED88 |= 0xFu << 20;
+    __asm volatile ("dsb\nisb" ::: "memory");
+#endif
     uint32_t *source = &_sidata;
     for (uint32_t *dest = &_sdata; dest < &_edata;)
         *dest++ = *source++;

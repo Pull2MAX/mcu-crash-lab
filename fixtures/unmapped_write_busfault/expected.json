@@ -1,5 +1,6 @@
 {
   "machine": "mps2-an386",
+  "frame": "basic",
   "fault_type": "BusFault",
   "function": "write_unmapped",
   "file": "main.c",
