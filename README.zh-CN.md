@@ -1,5 +1,7 @@
 # mcu-crash-lab
 
+[English](README.md) | 简体中文
+
 用于分析 Cortex-M 崩溃的 agent skill。提供 CFSR/HFSR、故障地址寄存器、压栈的 PC/LR 以及对应的 ELF，它会给出置位的故障位和 PC/LR 对应的源码位置。小固件 fixture 用于对分析脚本进行 QEMU 回归检查。
 
 ## 使用
