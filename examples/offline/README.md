@@ -12,6 +12,8 @@ Rebuild with `make -C fixtures/unmapped_write_busfault` and copy
 address 0x60000000 sets PRECISERR and BFARVALID. The store is at PC 0x50.
 
 `crash_thin.txt` is hand-built from that capture. CFSR contains only
-IMPRECISERR, BFAR is absent, and PC is 0x52, the instruction after the store.
+IMPRECISERR, BFARVALID is clear, and PC is 0x52, the instruction after the store.
+HFSR, MMFAR and BFAR retain their captured values to meet the input contract;
+the analyzer ignores the address values while their VALID bits are clear.
 It demonstrates uncertainty about the faulting instruction, not a QEMU
-reproduction of IMPRECISERR. Neither example adds a verified scenario.
+reproduction of IMPRECISERR. Neither example adds a QEMU regression match.
