@@ -1,6 +1,9 @@
 # mcu-crash-lab
 
-English | [简体中文](README.zh-CN.md)
+<p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/English-0969da?style=for-the-badge" alt="English"></a>
+  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/简体中文-gray?style=for-the-badge" alt="简体中文"></a>
+</p>
 
 An agent skill for triaging Cortex-M crashes. Give it CFSR/HFSR, the fault address registers, stacked PC/LR and the matching ELF; it names the fault bits and locates PC/LR in the source. Small firmware fixtures provide QEMU regression checks for the analyzer.
 
