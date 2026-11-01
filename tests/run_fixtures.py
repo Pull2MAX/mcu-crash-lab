@@ -46,15 +46,16 @@ def run_fixture(folder, qemu_version):
         )
         analysis = json.loads(run.stdout)
         checks = [(key, analysis[key], expected[key])
-                  for key in ("fault_type", "cfsr_bits", "frame", "class") if key in expected]
+                  for key in ("fault_type", "cfsr_bits", "frame", "cause", "context") if key in expected]
         checks += [(f"PC {key}", analysis["pc"][key], expected[key])
                    for key in ("function", "file", "line")]
         checks.append(("hfsr_bits", analysis["hfsr_bits"], expected.get("hfsr_bits", [])))
         for key in ("exc_return", "cfsr", "hfsr", "mmfar", "bfar"):
             if key in expected:
                 checks.append((key, registers[key.upper()], int(expected[key], 16)))
-        if "isr_number" in expected:
-            checks.append(("isr_number", registers["xPSR"] & 0x1FF, expected["isr_number"]))
+        if "context" in expected:
+            checks.append(("exception_number", registers["xPSR"] & 0x1FF,
+                           expected["context"]["exception_number"]))
         if "mmfar_symbol" in expected or "bfar_symbol" in expected:
             nm = subprocess.check_output(["arm-none-eabi-nm", "--defined-only", str(elf)], text=True)
             symbols = {name: int(address, 16) for address, _, name in

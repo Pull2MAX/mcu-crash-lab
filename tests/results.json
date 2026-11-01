@@ -18,9 +18,13 @@
       "elf": "fixtures/div0_usagefault/build/firmware.elf",
       "dump": "fixtures/div0_usagefault/build/dump.txt",
       "analysis": {
-        "class": null,
+        "cause": "divide_by_zero",
         "fault_type": "UsageFault",
         "frame": "basic",
+        "context": {
+          "mode": "thread",
+          "exception_number": 0
+        },
         "pre_exception_sp": 541065160,
         "cfsr_bits": [
           "DIVBYZERO"
@@ -95,9 +99,13 @@
       "elf": "fixtures/fault_in_isr_unmapped/build/firmware.elf",
       "dump": "fixtures/fault_in_isr_unmapped/build/dump.txt",
       "analysis": {
-        "class": "fault_in_isr",
+        "cause": "precise_bus_error",
         "fault_type": "HardFault",
         "frame": "basic",
+        "context": {
+          "mode": "isr",
+          "exception_number": 15
+        },
         "pre_exception_sp": 541065148,
         "cfsr_bits": [
           "PRECISERR",
@@ -120,9 +128,9 @@
         },
         "bfar": 1610612736,
         "mmfar": null,
-        "hint": "Check the load/store pointer and the board memory map. LR is EXC_RETURN; supply the stacked LR for the caller location.",
+        "hint": "Check the load/store pointer and the board memory map. Stacked LR is EXC_RETURN; the interrupted context's frame is higher on the stack. Capture stack memory to unwind further.",
         "caveats": [
-          "A configurable fault escalated to HardFault; the cause is in CFSR. Inspect CFSR and SHCSR."
+          "HFSR.FORCED indicates escalation to HardFault; inspect CFSR and SHCSR."
         ]
       },
       "registers": {
@@ -155,9 +163,13 @@
       "elf": "fixtures/fpu_frame_fault/build/firmware.elf",
       "dump": "fixtures/fpu_frame_fault/build/dump.txt",
       "analysis": {
-        "class": "fpu_frame_fault",
+        "cause": "precise_bus_error",
         "fault_type": "BusFault",
         "frame": "extended",
+        "context": {
+          "mode": "thread",
+          "exception_number": 0
+        },
         "pre_exception_sp": 541065164,
         "cfsr_bits": [
           "PRECISERR",
@@ -211,9 +223,13 @@
       "elf": "fixtures/mpu_violation/build/firmware.elf",
       "dump": "fixtures/mpu_violation/build/dump.txt",
       "analysis": {
-        "class": "mpu_violation",
+        "cause": "mpu_violation",
         "fault_type": "MemManage",
         "frame": "basic",
+        "context": {
+          "mode": "thread",
+          "exception_number": 0
+        },
         "pre_exception_sp": 541065180,
         "cfsr_bits": [
           "DACCVIOL",
@@ -267,9 +283,13 @@
       "elf": "fixtures/mpu_violation_forced/build/firmware.elf",
       "dump": "fixtures/mpu_violation_forced/build/dump.txt",
       "analysis": {
-        "class": "mpu_violation",
+        "cause": "mpu_violation",
         "fault_type": "HardFault",
         "frame": "basic",
+        "context": {
+          "mode": "thread",
+          "exception_number": 0
+        },
         "pre_exception_sp": 541065180,
         "cfsr_bits": [
           "DACCVIOL",
@@ -294,7 +314,7 @@
         "mmfar": 536870912,
         "hint": "Check the pointer and MPU data permissions.",
         "caveats": [
-          "A configurable fault escalated to HardFault; the cause is in CFSR. Inspect CFSR and SHCSR."
+          "HFSR.FORCED indicates escalation to HardFault; inspect CFSR and SHCSR."
         ]
       },
       "registers": {
@@ -327,9 +347,13 @@
       "elf": "fixtures/undefined_instruction_usagefault/build/firmware.elf",
       "dump": "fixtures/undefined_instruction_usagefault/build/dump.txt",
       "analysis": {
-        "class": null,
+        "cause": "undefined_instruction",
         "fault_type": "UsageFault",
         "frame": "basic",
+        "context": {
+          "mode": "thread",
+          "exception_number": 0
+        },
         "pre_exception_sp": 541065180,
         "cfsr_bits": [
           "UNDEFINSTR"
@@ -382,9 +406,13 @@
       "elf": "fixtures/unmapped_write_busfault/build/firmware.elf",
       "dump": "fixtures/unmapped_write_busfault/build/dump.txt",
       "analysis": {
-        "class": null,
+        "cause": "precise_bus_error",
         "fault_type": "BusFault",
         "frame": "basic",
+        "context": {
+          "mode": "thread",
+          "exception_number": 0
+        },
         "pre_exception_sp": 541065168,
         "cfsr_bits": [
           "PRECISERR",
