@@ -5,33 +5,33 @@
   <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/简体中文-0969da?style=for-the-badge" alt="简体中文"></a>
 </p>
 
-用于分析 Cortex-M 崩溃的 agent skill。提供 CFSR/HFSR、故障地址寄存器、压栈的 PC/LR 以及对应的 ELF，它会给出置位的故障位和 PC/LR 对应的源码位置。小固件 fixture 用于对分析脚本进行 QEMU 回归检查。
+mcu-crash-lab 是一个排查 Cortex-M 崩溃用的 agent skill。把 CFSR/HFSR、故障地址寄存器、压栈的 PC/LR 和对应的 ELF 交给它，它会列出置位的故障位，并找到 PC 和 LR 在源码里的位置。仓库里还有一些小固件 fixture，在 QEMU 里运行，作为分析脚本的回归检查。
 
 ## 使用
 
-把 `skills/mcu-crash-lab/` 复制到你的 agent 加载 skill 的目录。各 agent 的安装位置不同，请查看对应 agent 的文档。fixture 测试套件保留在本仓库中，复制 skill 不会安装这套测试。
+把 `skills/mcu-crash-lab/` 复制到你的 agent 加载 skill 的目录。各家 agent 的目录不一样，具体看它的文档。复制 skill 不会顺带装上 fixture 测试套件，这套测试留在本仓库里。
 
 分析一份转储：
 
     python3 skills/mcu-crash-lab/scripts/analyze_crash.py fixtures/div0_usagefault/dump.txt --elf path/to/firmware.elf --json
 
-需要 PATH 中有 `arm-none-eabi-addr2line`。
+PATH 里要能找到 `arm-none-eabi-addr2line`。
 
-转储必须包含 `CFSR`、`HFSR`、`MMFAR`、`BFAR`、`PC` 和 `LR`。即使地址寄存器的 VALID 位未置位，也要提供原始值；分析脚本会将这些地址标为无效。`EXC_RETURN`、`xPSR` 和 `SP` 可选，缺少时依赖它们的帧类型、执行上下文或异常前 SP 显示为未知，并给出提示。
+转储里必须有 `CFSR`、`HFSR`、`MMFAR`、`BFAR`、`PC` 和 `LR`。地址寄存器的 VALID 位没置上，也照样给出原始值，分析脚本会把这些地址标为无效。`EXC_RETURN`、`xPSR` 和 `SP` 可以不给。缺了哪一项，依赖它的帧类型、执行上下文或异常前 SP 就显示为未知，并附一条提示。
 
-寄存器值按十六进制解析。`CFSR=00008200` 这样的无前缀值也可接受，但会提示这一假设。一行可包含多组 `KEY=VALUE` 或 `KEY: VALUE`，也可带尾部注释。JSON 分别报告 `cause`、`frame`（basic/extended）和 `context`（thread/isr 及异常号）。符号化会还原 C++ 名称，addr2line 返回多帧时还会包含 `inline_chain`。
+寄存器值按十六进制解析。`CFSR=00008200` 这种不带前缀的写法也能用，输出里会附一条提示，说明做了这个假设。一行里可以写多组 `KEY=VALUE` 或 `KEY: VALUE`，行尾还可以带注释。JSON 输出里，`cause`、`frame`（basic/extended）和 `context`（thread/isr 及异常号）是分开的字段。符号名会还原成 C++ 原名。addr2line 返回多帧时，输出里会带上 `inline_chain`。
 
 离线演示只需要 Python 和 addr2line：
 
     make demo
 
-`examples/offline/` 包含从 `unmapped_write_busfault` 构建的 ELF、完整的 QEMU 转储和手工构造的精简转储。精简转储的 CFSR 仅含 IMPRECISERR，没有有效 BFAR，PC 位于 store 指令之后；分析脚本会提示 PC 可能不是故障指令。这些示例不增加 QEMU 回归匹配数。可选的 `FPCCR` 可触发延迟保存 FP 状态的提示；这项行为只有合成数据单元测试，因为 fixture 的转储程序不采集 FPCCR。
+`examples/offline/` 里有一个从 `unmapped_write_busfault` 预先构建好的 ELF，另外有一份完整的 QEMU 转储和一份手工写的精简转储。精简转储里 CFSR 只有 IMPRECISERR，BFAR 无效。它的 PC 已经越过了 store 指令。分析脚本会提示 PC 可能不是故障指令。这些示例不计入 QEMU 回归匹配数。转储里还可以加上 `FPCCR`，用来触发 FP 状态延迟保存的提示。这一项只有合成数据的单元测试，因为 fixture 的转储程序不采集 FPCCR。
 
 ## Fixtures
 
-最近一次实际执行的 `make test` 记录了 7 个 QEMU 回归匹配（[tests/results.json](tests/results.json) 中的 `verified_count`）。这里保存的 `verified` 状态表示：分析脚本的解码与 QEMU 实测值一致，且故障 PC 行号匹配 `/* FAULT HERE */` 标记。这是回归检查，不是诊断正确性的证明。寄存器预期值本身来自 QEMU；源码标记另外检查 PC 的位置。
+最近一次实际运行的 `make test` 记录了 7 个 QEMU 回归匹配（见 [tests/results.json](tests/results.json) 里的 `verified_count`）。保存下来的 `verified` 状态表示：分析脚本的解码结果和 QEMU 实测值一致，而且故障 PC 落在标有 `/* FAULT HERE */` 的那一行。这只是回归检查，证明不了诊断是对的。寄存器预期值本身就取自 QEMU。源码标记另外检查了 PC 的位置。
 
-这 7 个场景覆盖 4 种不同机制：写未映射地址、整数除零、未定义指令和 MPU 数据权限违规。扩展帧、ISR 上下文及升级异常只是这些机制的变体。
+这 7 个场景涉及 4 种不同的机制：写未映射地址、整数除零、未定义指令和 MPU 数据权限违规。其余 fixture 是在其中某一种上加了扩展帧、放进 ISR 上下文或引发异常升级。
 
 | Fixture | mps2-an386 上执行的操作 | 实测寄存器/帧 | 回归状态 |
 |---|---|---|---|
@@ -44,29 +44,29 @@
 | fault_in_isr_unmapped | SysTick_Handler 中写未映射地址 0x60000000 | PRECISERR、BFARVALID、HFSR.FORCED、异常号 15 | QEMU 10.0.13 (mps2-an386) 匹配 |
 | fault_in_isr | SysTick_Handler 中写地址 0 | 无 | not reproduced（mps2-an386 上地址 0 是 RAM，不产生故障） |
 
-QEMU 不模拟写缓冲：写 0x60000000 产生精确 BusFault，BFARVALID 置位。真实 Cortex-M3/M4 对这种可缓冲 Normal 内存的写操作通常报告 IMPRECISERR，没有有效 BFAR，PC 也已越过 store。MPS2 AN386 模型上地址 0 是可写 RAM，因此 `fault_in_isr` 中的 NULL 写操作不会触发故障。
+QEMU 不模拟写缓冲，所以写 0x60000000 得到的是精确 BusFault，BFARVALID 置位。在真实的 Cortex-M3/M4 上，这次写的是 Normal 内存，会进写缓冲，通常报成 IMPRECISERR。这时 BFAR 无效，PC 也已经越过了 store。MPS2 AN386 模型上地址 0 是可写 RAM，因此 `fault_in_isr` 里的 NULL 写在这里不会触发故障。
 
-每个 fixture 的 `expected.json` 写明预期函数、行号（main.c 中标有 `/* FAULT HERE */`）、CFSR 位和 `source` 标签：`qemu_measured`、`hand_built` 或 `real_device`。只有来源为 `qemu_measured` 且与预期匹配的 QEMU 运行才计入 `verified_count`。`fault_in_isr` 保留手工预测值和 `not_reproduced` 状态。保存的 `dump.txt` 用于单元测试及没有 QEMU 时的运行。没有 QEMU 时测试脚本报告 "static analysis only"，QEMU 回归匹配数为 0。
+每个 fixture 都有一个 `expected.json`，里面写着预期函数、行号（main.c 里用 `/* FAULT HERE */` 标出）、CFSR 位和 `source` 标签。标签取值为 `qemu_measured`、`hand_built` 或 `real_device`。QEMU 运行结果与预期一致，并且来源是 `qemu_measured`，才计入 `verified_count`。`fault_in_isr` 保留手工预测值，状态是 `not_reproduced`。保存的 `dump.txt` 给单元测试用，没有 QEMU 时也拿它来跑。没有 QEMU 时，测试脚本报告 "static analysis only"，QEMU 回归匹配数为 0。
 
 这些检查的局限：
 
-- `fault_in_isr_unmapped` 测得 CFSR 0x8200 和 HFSR.FORCED，与 BusFault 无法抢占优先级为 0 的 SysTick 相符。检查确认了这些位、异常号 15、EXC_RETURN 0xFFFFFFF1 以及 PC 位于 SysTick_Handler。转储程序不采集当前 handler 向量，所以 HardFault 标签是根据状态位推断的。
-- 在这些基本帧和扩展帧中，核心寄存器在前，转储程序从 SP+0x18 读取 PC。将该 PC 与标记匹配，检查的是转储程序读取的位置。帧大小及异常前 SP 计算有单元测试，但没有独立测得的异常前 SP 真值。
-- 尚无 fixture 覆盖栈溢出（STKERR/MSTKERR）、非对齐访问、INVSTATE、IACCVIOL、NOCP、INVPC、IMPRECISERR 或 PSP 线程帧。手工构造的 IMPRECISERR 演示不填补这一空白。fixture 使用 GCC 和 `-O0`；优化构建及 Keil/IAR 镜像未经测试。
+- `fault_in_isr_unmapped` 测得 CFSR 0x8200 和 HFSR.FORCED，这和 BusFault 无法抢占优先级为 0 的 SysTick 的情况相符。检查确认了这些位、异常号 15、EXC_RETURN 0xFFFFFFF1，以及 PC 位于 SysTick_Handler 内。转储程序不记录当时进入的是哪个 handler 向量，所以 HardFault 标签是从状态位推断出来的。
+- 这里的基本帧和扩展帧都是核心寄存器在前，转储程序从 SP+0x18 读取 PC。拿这个 PC 去对照标记，检查的是转储程序读取的位置。帧大小和异常前 SP 的计算有单元测试，但没有独立测得的异常前 SP 值可以对照。
+- 栈溢出（STKERR/MSTKERR）、非对齐访问、INVSTATE、IACCVIOL、NOCP、INVPC、IMPRECISERR 和 PSP 线程帧目前都还没有 fixture。手工构造的 IMPRECISERR 演示不算覆盖。fixture 用 GCC 以 `-O0` 构建，优化构建和 Keil/IAR 镜像都没有测过。
 
-带 fixed 变体的 fixture（fpu_frame_fault、mpu_violation、mpu_violation_forced、fault_in_isr、fault_in_isr_unmapped）还会构建 fixed/main.c，要求打印 DONE。这些变体省去了故障操作，不验证提出的诊断或修复建议。
+有些 fixture 带 fixed 变体：fpu_frame_fault、mpu_violation、mpu_violation_forced、fault_in_isr 和 fault_in_isr_unmapped。它们还会构建 fixed/main.c，要求打印 DONE。fixed 代码只是去掉了出错的那一步操作，不检验任何诊断或修复建议。
 
-用 expected.json 评估模型的崩溃分析结论是计划中的工作，尚未进行，这里没有任何模型准确率的测量。
+用 expected.json 给模型的崩溃分析结论打分已列入计划，还没有做。这里没有任何测量模型准确率的内容。
 
 ## 测试
 
-需要 arm-none-eabi-gcc、make、python3，以及支持 mps2-an386 的 qemu-system-arm。
+需要 arm-none-eabi-gcc、make、python3，以及支持 mps2-an386 机型的 qemu-system-arm。
 
     make test
 
-先跑单元测试，再逐个构建 fixture，在 QEMU 中运行（超时 10 秒），把抓到的寄存器交给分析脚本，并与 `expected.json` 比较。
+它先跑单元测试，然后逐个构建 fixture，在 QEMU 中运行（超时 10 秒），把抓到的寄存器交给分析脚本，再和 `expected.json` 比对。
 
-在提供的工作区环境中运行：
+在提供的工作区环境里这样运行：
 
     source ~/opt/qemu-env.sh && make clean && make test
 
@@ -77,7 +77,7 @@ QEMU 不模拟写缓冲：写 0x60000000 产生精确 BusFault，BFARVALID 置�
     fixtures/common/        共享 startup.c、link.ld、故障处理程序及 make 规则
     tests/                  run_fixtures.py、test_analyzer.py、results.json
 
-`skills/mcu-crash-lab/references/` 中的参考资料是草稿，未经硬件验证。
+`skills/mcu-crash-lab/references/` 里的参考资料还是草稿，没有在硬件上核对过。
 
 ## 许可
 

@@ -5,33 +5,33 @@
   <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/简体中文-gray?style=for-the-badge" alt="简体中文"></a>
 </p>
 
-An agent skill for triaging Cortex-M crashes. Give it CFSR/HFSR, the fault address registers, stacked PC/LR and the matching ELF; it names the fault bits and locates PC/LR in the source. Small firmware fixtures provide QEMU regression checks for the analyzer.
+mcu-crash-lab is an agent skill for triaging Cortex-M crashes. Give it CFSR/HFSR, the fault address registers, the stacked PC/LR and the matching ELF. It names the fault bits that are set and finds where PC and LR point in the source. The repository also has small firmware fixtures. They run in QEMU as regression checks for the analyzer.
 
 ## Use
 
-Copy `skills/mcu-crash-lab/` to wherever your agent loads skills from. Install locations differ between agents; check your agent's docs. The fixture suite stays in this repository; copying the skill does not install it.
+Copy `skills/mcu-crash-lab/` to the directory your agent loads skills from. Each agent puts it somewhere different, so check your agent's docs. Copying the skill does not install the fixture suite. The suite stays in this repository.
 
 Run the analyzer on a dump:
 
     python3 skills/mcu-crash-lab/scripts/analyze_crash.py fixtures/div0_usagefault/dump.txt --elf path/to/firmware.elf --json
 
-It needs `arm-none-eabi-addr2line` on PATH.
+`arm-none-eabi-addr2line` must be on PATH.
 
-Required dump fields are `CFSR`, `HFSR`, `MMFAR`, `BFAR`, `PC` and `LR`. Supply the raw address register values even when their VALID bits are clear; the analyzer reports those addresses as invalid. `EXC_RETURN`, `xPSR` and `SP` are optional. Missing fields leave the dependent frame type, execution context or pre-exception SP unknown, with a caveat.
+A dump must contain `CFSR`, `HFSR`, `MMFAR`, `BFAR`, `PC` and `LR`. Give the raw values of the address registers even when their VALID bits are clear. The analyzer then reports those addresses as invalid. `EXC_RETURN`, `xPSR` and `SP` are optional. If one is missing, whatever depends on it (frame type, execution context or pre-exception SP) is reported as unknown, with a caveat.
 
-Register values are hexadecimal. Bare values such as `CFSR=00008200` are accepted with an assumption caveat. Multiple `KEY=VALUE` or `KEY: VALUE` pairs may share a line and have trailing annotations. JSON reports `cause`, `frame` (basic/extended) and `context` (thread/isr plus exception number) separately. Symbolization uses demangling and includes `inline_chain` when addr2line returns multiple frames.
+Register values are read as hex. A bare value such as `CFSR=00008200` is accepted, with a caveat about that assumption. One line can hold several `KEY=VALUE` or `KEY: VALUE` pairs and can end with annotations. The JSON output has separate `cause`, `frame` (basic/extended) and `context` (thread/isr plus exception number) fields. Symbol names are demangled. When addr2line returns multiple frames, the output includes `inline_chain`.
 
-For an offline demo with Python and addr2line only:
+The offline demo needs only Python and addr2line:
 
     make demo
 
-`examples/offline/` contains a prebuilt ELF from `unmapped_write_busfault`, a full QEMU capture and a hand-built thin dump. The thin dump has only IMPRECISERR in CFSR, no valid BFAR and PC past the store; the analyzer warns that PC may not identify the faulting instruction. These examples add no QEMU regression matches. Optional `FPCCR` can trigger a lazy FP state warning; this has synthetic unit tests only, since the fixture dumper does not capture FPCCR.
+`examples/offline/` holds a prebuilt ELF from `unmapped_write_busfault`, plus a full QEMU capture and a hand-built thin dump. In the thin dump, CFSR has only IMPRECISERR and BFAR is not valid. Its PC is already past the store. The analyzer warns that PC may not identify the faulting instruction. These examples do not count as QEMU regression matches. A dump can also include `FPCCR`, which can trigger a warning about lazy FP state. Only synthetic unit tests cover this, because the fixture dumper does not capture FPCCR.
 
 ## Fixtures
 
-The last real `make test` recorded 7 QEMU regression matches (`verified_count` in [tests/results.json](tests/results.json)). Here, the stored status `verified` means the analyzer decoding agrees with values measured in QEMU and the fault PC line matches the `/* FAULT HERE */` marker. This is a regression check, not proof of correct diagnosis. The register expectations themselves came from QEMU; the source marker supplies a separate check of the PC location.
+The last real `make test` run recorded 7 QEMU regression matches (`verified_count` in [tests/results.json](tests/results.json)). A stored status of `verified` means the analyzer's decoding agreed with the values measured in QEMU and the fault PC was on the line marked `/* FAULT HERE */`. This is only a regression check. It does not prove the diagnosis is correct. The expected register values were themselves taken from QEMU. The source marker gives a separate check of the PC location.
 
-These 7 scenarios cover 4 distinct mechanisms: an unmapped store, integer division by zero, an undefined instruction and an MPU data permission violation. Extended frames, ISR context and escalation exercise variations of those mechanisms.
+The 7 scenarios cover 4 distinct mechanisms: a store to an unmapped address, integer division by zero, an undefined instruction and an MPU data permission violation. The remaining fixtures repeat one of these with an extended frame, in ISR context or with escalation.
 
 | Fixture | Code on mps2-an386 | Measured registers/frame | Regression status |
 |---|---|---|---|
@@ -44,27 +44,27 @@ These 7 scenarios cover 4 distinct mechanisms: an unmapped store, integer divisi
 | fault_in_isr_unmapped | write to unmapped address 0x60000000 in SysTick_Handler | PRECISERR, BFARVALID, HFSR.FORCED, exception number 15 | match in QEMU 10.0.13 (mps2-an386) |
 | fault_in_isr | write to address 0 in SysTick_Handler | none | not reproduced (address 0 is RAM on mps2-an386, no fault) |
 
-QEMU does not model the write buffer: the store to 0x60000000 produces a precise BusFault with BFARVALID. Real Cortex-M3/M4 devices usually report IMPRECISERR for this buffered Normal-memory store, with no valid BFAR and PC already past the store. On the MPS2 AN386 model address 0 is writable RAM, so the NULL write in `fault_in_isr` does not fault there.
+QEMU does not model the write buffer, so the store to 0x60000000 gives a precise BusFault with BFARVALID set. On real Cortex-M3/M4 devices this store to Normal memory is buffered and usually shows up as IMPRECISERR. BFAR is then not valid, and PC has already moved past the store. On the MPS2 AN386 model, address 0 is writable RAM, so the NULL write in `fault_in_isr` does not fault there.
 
-Each fixture has `expected.json` with the expected function, line (marked `/* FAULT HERE */` in main.c), CFSR bits and a `source` label: `qemu_measured`, `hand_built` or `real_device`. Only matching QEMU runs with source `qemu_measured` contribute to `verified_count`. `fault_in_isr` keeps hand-built predictions and status `not_reproduced`. Saved `dump.txt` files supply unit tests and runs without QEMU. Without QEMU the runner reports "static analysis only" and counts zero QEMU regression matches.
+Each fixture has an `expected.json`. It lists the expected function, the line (marked `/* FAULT HERE */` in main.c), the CFSR bits and a `source` label. The label is `qemu_measured`, `hand_built` or `real_device`. A QEMU run adds to `verified_count` only when it matches and the source is `qemu_measured`. `fault_in_isr` keeps its hand-built predictions and the status `not_reproduced`. The saved `dump.txt` files are used by the unit tests and by runs without QEMU. Without QEMU, the runner reports "static analysis only" and counts zero QEMU regression matches.
 
 Limits of these checks:
 
-- `fault_in_isr_unmapped` measures CFSR 0x8200 and HFSR.FORCED, consistent with a BusFault unable to preempt SysTick at priority 0. The checks establish these bits, exception number 15, EXC_RETURN 0xFFFFFFF1 and PC in SysTick_Handler. The dumper does not capture the active handler vector, so HardFault labels are inferred from status bits.
-- In these basic and extended frames, the core registers come first and the dumper reads PC at SP+0x18. Matching that PC to the marker checks the dumper's location. Frame size and pre-exception SP calculations have unit tests, without independently measured pre-exception SP values.
-- There are no fixtures yet for stack overflow (STKERR/MSTKERR), unaligned access, INVSTATE, IACCVIOL, NOCP, INVPC, IMPRECISERR or a PSP thread frame. The hand-built IMPRECISERR demo does not fill that gap. Fixtures use GCC at `-O0`; optimized builds and Keil/IAR images are untested.
+- `fault_in_isr_unmapped` measures CFSR 0x8200 and HFSR.FORCED. That fits a BusFault that cannot preempt SysTick at priority 0. The checks confirm these bits, exception number 15, EXC_RETURN 0xFFFFFFF1 and a PC in SysTick_Handler. The dumper does not record which handler vector was active, so HardFault labels are inferred from the status bits.
+- In the basic and extended frames here, the core registers come first, and the dumper reads PC at SP+0x18. Matching that PC against the marker checks where the dumper reads. The frame size and pre-exception SP calculations have unit tests, but there are no independently measured pre-exception SP values to compare with.
+- No fixture covers stack overflow (STKERR/MSTKERR), unaligned access, INVSTATE, IACCVIOL, NOCP, INVPC, IMPRECISERR or a PSP thread frame yet. The hand-built IMPRECISERR demo does not count as coverage. Fixtures are built with GCC at `-O0`. Optimized builds and Keil/IAR images have not been tested.
 
-Fixtures with a fixed variant (fpu_frame_fault, mpu_violation, mpu_violation_forced, fault_in_isr, fault_in_isr_unmapped) also build fixed/main.c, which must print DONE. These variants omit the faulting operation; they do not validate proposed diagnosis or repair advice.
+Some fixtures have a fixed variant: fpu_frame_fault, mpu_violation, mpu_violation_forced, fault_in_isr and fault_in_isr_unmapped. They also build fixed/main.c, which must print DONE. The fixed code just leaves out the faulting operation. It does not test any proposed diagnosis or repair advice.
 
-Scoring a model's crash conclusions against expected.json is planned, not done. Nothing here measures model accuracy.
+Scoring a model's crash conclusions against expected.json is planned and has not been done. Nothing here measures model accuracy.
 
 ## Test
 
-Needs arm-none-eabi-gcc, make, python3 and qemu-system-arm with the mps2-an386 machine.
+You need arm-none-eabi-gcc, make, python3 and qemu-system-arm with the mps2-an386 machine.
 
     make test
 
-This runs the unit tests, then builds every fixture, runs it in QEMU with a 10 s timeout, feeds the captured registers to the analyzer and compares the result with `expected.json`.
+This runs the unit tests first. Then it builds every fixture, runs it in QEMU with a 10 s timeout, passes the captured registers to the analyzer and compares the result with `expected.json`.
 
 In the provided workspace environment, run:
 
