@@ -11,7 +11,8 @@ Covers ARMv7-M and ARMv8-M Mainline (Cortex-M3/M4/M7/M33). Cortex-M0/M0+ (ARMv6-
 
 ## You need
 - CFSR, HFSR, and MMFAR/BFAR if their valid bits are set
-- stacked R0-R3, R12, LR, PC and xPSR, the EXC_RETURN value the handler was entered with, and SP
+- stacked PC and LR (R0-R3 and R12 help when PC is at a load or store)
+- optional but worth asking for: stacked xPSR, the EXC_RETURN value the handler was entered with, and SP. With them the script can work out the frame type and the SP before the exception; without them it says so in `caveats`
 - FPCCR, if the firmware uses the FPU and it was read before any FP instruction in the handler
 - the image from the build that crashed (`.elf`, `.axf` or `.out`), and the `.map` if there is one
 
