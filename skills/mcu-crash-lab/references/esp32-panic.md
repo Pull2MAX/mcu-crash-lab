@@ -3,14 +3,14 @@
 ## Decode first
 - `idf.py monitor` decodes backtraces automatically if run from the project that built the flashed firmware.
 - Manual: `xtensa-esp32-elf-addr2line -pfiaC -e build/<app>.elf 0x400d1234:0x3ffb1234 ...` (use `xtensa-esp32s3-elf-` for S3, `riscv32-esp-elf-` for C3/C6/H2).
-- Only the `0x400...` style PC values (code addresses) are meaningful for addr2line; the second value in each pair is the stack pointer.
+- Only code addresses are meaningful for addr2line (`0x400...` on classic ESP32, `0x42...` for flash code on S3 and C3); the second value in each pair is the stack pointer.
 - ELF must match the flashed build exactly.
 
 ## Common panic messages
 - `LoadProhibited` / `StoreProhibited` (Xtensa) or `Load access fault` / `Store/AMO access fault` (RISC-V): invalid memory access. `EXCVADDR` (Xtensa) or `MTVAL` (RISC-V) is the address; near 0 means null pointer.
 - `InstrFetchProhibited`: jumped to a bad address, often a corrupted function pointer or stack smash.
 - `IntegerDivideByZero`: divide by zero.
-- `Unaligned`: unaligned access to memory that requires alignment.
+- `LoadStoreAlignment` (Xtensa) or `Load/Store address misaligned` (RISC-V): unaligned access to memory that requires alignment.
 - `Stack canary watchpoint triggered (taskname)`: stack overflow in that task. Increase stack size or reduce locals; enable `CONFIG_FREERTOS_CHECK_STACKOVERFLOW`.
 - `Task watchdog got triggered`: a task did not yield; the log lists which tasks and CPU cores.
 - `Interrupt wdt timeout on CPU0/1`: interrupts disabled too long or ISR running too long.

@@ -19,7 +19,7 @@ E: Current thread: 0x... (name)
 ## Common fatal reasons
 - `K_ERR_CPU_EXCEPTION` (0): CPU fault, decode as above.
 - `K_ERR_SPURIOUS_IRQ`: interrupt with no handler registered.
-- `K_ERR_STACK_CHK_FAIL`: stack overflow detected by the stack canary.
+- `K_ERR_STACK_CHK_FAIL`: stack overflow detected by the stack canary or by MPU stack protection.
 - `K_ERR_KERNEL_OOPS` / `K_ERR_KERNEL_PANIC`: assertion or `k_oops()` / `k_panic()` call.
 
 ## Debugging aids (Kconfig)
